@@ -31,20 +31,18 @@ workflow {
                         .map { row -> [ row.biosampleName, [ row.read1, row.read2 ] ] }
         ch_reads.ifEmpty{ exit 1, "ERROR: Input csv file is empty." }
     }
-
-
                         
      ch_multiqc_config = Channel.fromPath(params.multiqc_config, checkIfExists: true)
      ch_reference_celltype = Channel.fromPath(params.celltype_ref)    
 
- 
+    ch_input_csv = file(params.input_csv, checkIfExists: true)
        
     RNASEQ_WF( 
                 params.publish_dir,
                 params.enable_publish,
                 params.disable_publish,
                 ch_reads, 
-                params.input_csv,
+                ch_input_csv,
                 params.adapter_sequence,
                 params.adapter_sequence_r2,
                 params.salmon_index,

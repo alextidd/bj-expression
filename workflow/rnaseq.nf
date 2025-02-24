@@ -187,9 +187,9 @@ workflow RNASEQ_WF {
     //     .collectFile( name: "junction_files.txt", newLine: true, sort: { it[0] }, storeDir: "${params.tmp_dir}" )
     //     { it[0].replaceFirst(/_.*/,"") + "\t" + "${params.publish_dir}_${params.timestamp}/secondary_analyses/alignment_htseq/" + it[1].getName() }
 
-    STARGETPRIM_WF.out.primary_bam
-        .collectFile( name: "bam_files.txt", newLine: true, sort: { it[0] }, storeDir: "${params.tmp_dir}" )
-            { it[0] + "\t" + "${params.publish_dir}_${params.timestamp}/secondary_analyses/alignment_htseq/" + it[1].getName() }
+    // STARGETPRIM_WF.out.primary_bam
+    //     .collectFile( name: "bam_files.txt", newLine: true, sort: { it[0] }, storeDir: "${params.tmp_dir}" )
+    //         { it[0] + "\t" + "${params.publish_dir}_${params.timestamp}/secondary_analyses/alignment_htseq/" + it[1].getName() }
 
     GENE_BODY_COVERAGE_RNA (STARGETPRIM_WF.out.primary_bam, ch_genebody_ref, ch_disable_publish )
     ch_gene_body_df = GENE_BODY_COVERAGE_RNA.out.df.collect()
@@ -376,39 +376,39 @@ workflow {
            
 }
 
-workflow.onComplete {
-    output                          = [:]
-    output["pipeline_run_name"]     = workflow.runName
-    output["pipeline_name"]         = workflow.manifest.name
-    output["pipeline_version"]      = workflow.manifest.version
-    output["pipeline_session_id"]   = workflow.sessionId
-    output["output"]                = [:]
-    output["output"]["bam"]         = [:]
-    // output["output"]["junction"]    = [:]
+// workflow.onComplete {
+//     output                          = [:]
+//     output["pipeline_run_name"]     = workflow.runName
+//     output["pipeline_name"]         = workflow.manifest.name
+//     output["pipeline_version"]      = workflow.manifest.version
+//     output["pipeline_session_id"]   = workflow.sessionId
+//     output["output"]                = [:]
+//     output["output"]["bam"]         = [:]
+//     // output["output"]["junction"]    = [:]
 
 
-    bam_outfile = file("$params.tmp_dir/bam_files.txt")
-    bam_outfile_lines = bam_outfile.readLines()
-    for ( bam_line : bam_outfile_lines ) {
-        def (sample_name, bam_path) = bam_line.split('\t')
-        output["output"]["bam"][sample_name] = [:]
-        output["output"]["bam"][sample_name]["bam"] = bam_path
-    }
+//     bam_outfile = file("${params.tmp_dir}/bam_files.txt")
+//     bam_outfile_lines = bam_outfile.readLines()
+//     for ( bam_line : bam_outfile_lines ) {
+//         def (sample_name, bam_path) = bam_line.split('\t')
+//         output["output"]["bam"][sample_name] = [:]
+//         output["output"]["bam"][sample_name]["bam"] = bam_path
+//     }
     
-    // junction_outfile = file("$params.tmp_dir/junction_files.txt")
-    // junction_outfile_lines = junction_outfile.readLines()
-    // for ( junction_line : junction_outfile_lines ) {
-    //     def (sample_name, junction_path) = junction_line.split('\t')
-    //     output["output"]["junction"][sample_name] = [:]
-    //     output["output"]["junction"][sample_name]["junction"] = junction_path
-    // }
+//     // junction_outfile = file("$params.tmp_dir/junction_files.txt")
+//     // junction_outfile_lines = junction_outfile.readLines()
+//     // for ( junction_line : junction_outfile_lines ) {
+//     //     def (sample_name, junction_path) = junction_line.split('\t')
+//     //     output["output"]["junction"][sample_name] = [:]
+//     //     output["output"]["junction"][sample_name]["junction"] = junction_path
+//     // }
     
-    def output_json = JsonOutput.toJson(output)
-    def output_json_pretty = JsonOutput.prettyPrint(output_json)
-    File outputfile = new File("$params.tmp_dir/output.json")
-    outputfile.write(output_json_pretty)
-    println(output_json_pretty)
-}
+//     def output_json = JsonOutput.toJson(output)
+//     def output_json_pretty = JsonOutput.prettyPrint(output_json)
+//     File outputfile = new File("$params.tmp_dir/output.json")
+//     outputfile.write(output_json_pretty)
+//     println(output_json_pretty)
+// }
 
 workflow.onError {
     output                          = [:]
