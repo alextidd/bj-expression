@@ -121,27 +121,29 @@ workflow RNASEQ_WF {
             }
             .set { branched_reads }
         
-        ch_fastqs = branched_reads.large.map { sample_id, files, read_count ->
-            tuple(sample_id, files)
-        }
+        ch_fastqs = ch_reads
     }
     
     ch_seqtk_version = Channel.empty()
     ch_fastp_report = Channel.empty()
     ch_fastp_version = Channel.empty()
-    if ( params.skip_subsampling ) {
-      
-        FastpFull_WF(ch_fastqs, params.two_color_chemistry, params.adapter_sequence, params.adapter_sequence_r2,ch_publish_dir, ch_disable_publish)
-        ch_fastp_report = FastpFull_WF.out.report
-        ch_fastp_version = FastpFull_WF.out.version
     
-    } else {
-        ch_fastqs_with_nreads = ch_fastqs.map { sample_name, reads ->
-            tuple(sample_name, reads, params.n_reads)
+    if ( !params.skip_subsampling ) {
+        // Run sub sampling followed by fastp only when subsampling is enabled 
+        // and when there are reads with min threshold
+        if (branched_reads.large.ifEmpty { false }) {
+            ch_fastqs_with_nreads = ch_fastqs.map { sample_name, reads ->
+                tuple(sample_name, reads, params.n_reads)
+            }
+            SEQTK_WF (ch_fastqs_with_nreads, false, params.read_length, params.seqtk_sample_seed, ch_publish_dir, ch_disable_publish)
+            ch_seqtk_version = SEQTK_WF.out.version
+            FastpFull_WF( SEQTK_WF.out.reads, params.two_color_chemistry, params.adapter_sequence, params.adapter_sequence_r2,ch_publish_dir, ch_disable_publish)
+            ch_fastp_report = FastpFull_WF.out.report
+            ch_fastp_version = FastpFull_WF.out.version
         }
-        SEQTK_WF (ch_fastqs_with_nreads, false, params.read_length, params.seqtk_sample_seed, ch_publish_dir, ch_disable_publish)
-        ch_seqtk_version = SEQTK_WF.out.version
-        FastpFull_WF( SEQTK_WF.out.reads, params.two_color_chemistry, params.adapter_sequence, params.adapter_sequence_r2,ch_publish_dir, ch_disable_publish)
+    } else {
+
+        FastpFull_WF(ch_fastqs, params.two_color_chemistry, params.adapter_sequence, params.adapter_sequence_r2,ch_publish_dir, ch_disable_publish)
         ch_fastp_report = FastpFull_WF.out.report
         ch_fastp_version = FastpFull_WF.out.version
         
@@ -232,7 +234,7 @@ workflow RNASEQ_WF {
     
     CALC_DYNAMICRANGE (CREATE_HTSEQ_MATRIX.out.htseq_matrix ,ch_publish_dir, ch_enable_publish)
 
-    if ( params.skip_subsampling ) {   
+    if ( params.skip_subsampling || branched_reads.large.ifEmpty { true } ) {
     	collect_master_stats = ch_merge_tsv.collect().ifEmpty([])
 	    .combine( ch_fastp_report.collect().ifEmpty([]))
 	    .combine( ch_qunt_merge_tsv.collect().ifEmpty([]) )
@@ -255,18 +257,17 @@ workflow RNASEQ_WF {
 
     }
 
-    CREATE_MASTER_STATS (collect_master_stats , COUNT_READS_FASTQ_WF.out.combined_read_counts, ch_publish_dir, ch_disable_publish)
-    
+    CREATE_MASTER_STATS (collect_master_stats, COUNT_READS_FASTQ_WF.out.combined_read_counts, branched_reads.large.ifEmpty{}, ch_publish_dir, ch_disable_publish)
 
     ch_tool_versions = ch_fastp_version.take(1)
                                     .combine(ch_seqtk_version.take(1).ifEmpty([]))
-                                    .combine(ch_salmon_version.take(1))
+                                    .combine(ch_salmon_version.take(1).ifEmpty([]))
                                     .combine(ch_star_version.take(1).ifEmpty([]))
                                     .combine(ch_qualimap_version.take(1).ifEmpty([]))
                                     .combine(ch_stargetprim_version.take(1).ifEmpty([]))
                                     .combine(ch_htseq_counts_version.take(1).ifEmpty([]))
-                                                
-                                                    
+
+
     REPORT_VERSIONS_WF(
                             ch_tool_versions,
                             ch_publish_dir,
@@ -276,7 +277,7 @@ workflow RNASEQ_WF {
                     .combine( ch_fastp_report.collect().ifEmpty([]))
                     .combine( ch_star_report.collect().ifEmpty([]))
                     .combine( ch_qualimap_report.collect().ifEmpty([]))
-                    .combine( ch_salmon_report.collect())
+                    .combine( ch_salmon_report.collect().ifEmpty([]))
                     .combine( ch_qc_report_stats.collect().ifEmpty([]))
                     .combine( ch_qc_report_pstats.collect().ifEmpty([]))
                     .combine( ch_qunt_merge_tsv.collect().ifEmpty([]))
@@ -387,13 +388,13 @@ workflow {
 //     // output["output"]["junction"]    = [:]
 
 
-//     bam_outfile = file("${params.tmp_dir}/bam_files.txt")
-//     bam_outfile_lines = bam_outfile.readLines()
-//     for ( bam_line : bam_outfile_lines ) {
-//         def (sample_name, bam_path) = bam_line.split('\t')
-//         output["output"]["bam"][sample_name] = [:]
-//         output["output"]["bam"][sample_name]["bam"] = bam_path
-//     }
+    bam_outfile = file("$params.tmp_dir/bam_files.txt")
+    bam_outfile_lines = bam_outfile.exists() ? bam_outfile.readLines() : []
+    for ( bam_line : bam_outfile_lines ) {
+        def (sample_name, bam_path) = bam_line.split('\t')
+        output["output"]["bam"][sample_name] = [:]
+        output["output"]["bam"][sample_name]["bam"] = bam_path
+    }
     
 //     // junction_outfile = file("$params.tmp_dir/junction_files.txt")
 //     // junction_outfile_lines = junction_outfile.readLines()

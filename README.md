@@ -1,4 +1,4 @@
-# BJ-Expression
+# BaseJumper BJ-Expression
 
 The BJ-Expression pipeline is a scalable and reproducible bioinformatics pipeline to process RNAseq data and assess transcript-level and gene-level quantification. The pipeline supports both single-end and paired-end data. The pipeline takes raw sequencing data in the form of FASTQ files and performs down-sampling (randomly selecting a fixed, smaller number of reads from the full set of reads) and adapter trimming of FASTQ files. The pipeline then performs transcript-level quantification using the pseudo-alignment method Salmon as well as gene-level quantification using STAR (Spliced Transcripts Alignment to a Reference) and HTSeq.
 
